@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
+import UserListModal from '../components/UserListModal';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -9,12 +10,13 @@ export default function Profile({ user }) {
   const [profileUser, setProfileUser] = useState(null);
   const [posts, setPosts] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', users: [] });
 
   const fetchUserAndPosts = async () => {
     try {
       const userRes = await axios.get(`${API_URL}/users/${id}`);
       setProfileUser(userRes.data);
-      setIsFollowing(userRes.data.followers?.includes(user._id));
+      setIsFollowing(userRes.data.followers?.some(follower => follower._id === user._id));
       document.title = `${userRes.data.username}'s Profile | Orbit`;
 
       const postRes = await axios.get(`${API_URL}/posts/profile/${id}`);
@@ -127,13 +129,19 @@ export default function Profile({ user }) {
           <p className="text-gray-400 mt-1 font-medium">{profileUser.email}</p>
           
           <div className="flex justify-center sm:justify-start gap-6 mt-6">
-            <div className="flex flex-col items-center sm:items-start group">
+            <div 
+              className="flex flex-col items-center sm:items-start group cursor-pointer"
+              onClick={() => setModalConfig({ isOpen: true, title: 'Followers', users: profileUser.followers })}
+            >
                <span className="font-black text-2xl text-gray-100 group-hover:text-indigo-400 transition-colors">{profileUser.followers?.length || 0}</span>
-               <span className="text-gray-500 font-semibold text-sm tracking-wide uppercase">Followers</span>
+               <span className="text-gray-500 font-semibold text-sm tracking-wide uppercase group-hover:text-indigo-300">Followers</span>
             </div>
-            <div className="flex flex-col items-center sm:items-start group">
+            <div 
+              className="flex flex-col items-center sm:items-start group cursor-pointer"
+              onClick={() => setModalConfig({ isOpen: true, title: 'Following', users: profileUser.following })}
+            >
                <span className="font-black text-2xl text-gray-100 group-hover:text-indigo-400 transition-colors">{profileUser.following?.length || 0}</span>
-               <span className="text-gray-500 font-semibold text-sm tracking-wide uppercase">Following</span>
+               <span className="text-gray-500 font-semibold text-sm tracking-wide uppercase group-hover:text-indigo-300">Following</span>
             </div>
           </div>
         </div>
@@ -213,6 +221,13 @@ export default function Profile({ user }) {
           </div>
         )}
       </div>
+
+      <UserListModal 
+        isOpen={modalConfig.isOpen} 
+        onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+        title={modalConfig.title}
+        users={modalConfig.users}
+      />
     </div>
   );
 }

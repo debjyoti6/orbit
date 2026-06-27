@@ -1,44 +1,41 @@
 const router = require('express').Router();
 const Post = require('../models/postmodel');
 const User = require('../models/usermodel');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-
-// Initialize Google Gen AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const Groq = require('groq-sdk');
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // CREATE POST
 router.post('/', async (req, res) => {
   try {
-    // 1. Check content with AI if text is provided
+    // Content Moderation check
     if (req.body.content) {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `You are a strict content moderation AI for a professional social media platform.
-Analyze the following user post. You MUST block it if it contains any of the following:
-1. Profanity, curse words, or swearing (e.g. f-words, b-words).
-2. Insults, bullying, harassment, or personal attacks.
-3. Violence, hate speech, or illegal acts.
-4. Obvious fake news/misinformation.
+      const chatCompletion = await groq.chat.completions.create({
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a strict content moderator. Reply with exactly "TRUE" if the following text contains abusive, offensive, or inappropriate words. Reply with exactly "FALSE" if it is clean. Do not add any other text.'
+          },
+          {
+            role: 'user',
+            content: req.body.content
+          }
+        ],
+        model: 'llama-3.1-8b-instant',
+        temperature: 0,
+      });
 
-If the post violates ANY of these rules, reply ONLY with the exact word "REJECT". 
-If it is a normal personal update, harmless opinion, or friendly content, reply ONLY with the exact word "APPROVE".
-
-User post: "${req.body.content}"`;
-      
-      const result = await model.generateContent(prompt);
-      const aiResponse = result.response.text().trim();
-      
-      if (aiResponse.includes("REJECT")) {
-        return res.status(400).json({ error: "Post blocked: Violates community guidelines (Profanity, harassment, or inappropriate content)." });
+      const responseText = chatCompletion.choices[0]?.message?.content?.trim().toUpperCase();
+      if (responseText === 'TRUE') {
+        return res.status(400).json({ error: "Post contains inappropriate content and cannot be published." });
       }
     }
 
-    // 2. If AI approves (or there's no text content), save the post
     const newPost = new Post(req.body);
     const savedPost = await newPost.save();
     res.status(200).json(savedPost);
   } catch (err) {
-    console.error("Post Creation Error:", err);
-    res.status(500).json({ error: "An error occurred while creating the post." });
+    console.error(err);
+    res.status(500).json(err);
   }
 });
 

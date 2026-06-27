@@ -8,6 +8,7 @@ export default function Feed({ user }) {
   const [posts, setPosts] = useState([]);
   const [content, setContent] = useState('');
   const [image, setImage] = useState('');
+  const [error, setError] = useState('');
 
   const fetchPosts = async () => {
     try {
@@ -37,11 +38,17 @@ export default function Feed({ user }) {
     if (!content.trim() && !image) return; // Can post text or image or both
     
     try {
+      setError('');
       await axios.post(`${API_URL}/posts`, { userId: user._id, content, image });
       setContent('');
       setImage('');
       fetchPosts();
     } catch (err) {
+      if (err.response && err.response.status === 400 && err.response.data.error) {
+        setError(err.response.data.error);
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
       console.error(err);
     }
   };
@@ -68,6 +75,7 @@ export default function Feed({ user }) {
     <div className="flex flex-col gap-10 w-full max-w-3xl mx-auto py-8 px-4">
       {/* Create Post Section */}
       <div className="bg-gray-900/40 backdrop-blur-xl p-4 sm:p-5 rounded-3xl shadow-xl border border-gray-700/50">
+        
         <form onSubmit={handlePost} className="flex flex-col gap-3">
           
           <div className="flex gap-3 items-start">
@@ -77,7 +85,7 @@ export default function Feed({ user }) {
             
             <textarea
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => { setContent(e.target.value); setError(''); }}
               placeholder={`What's on your mind, ${user.username}?`}
               className="w-full bg-transparent border-none p-2 focus:outline-none focus:ring-0 resize-none min-h-[60px] text-gray-100 placeholder-gray-500 text-lg"
             ></textarea>
@@ -93,6 +101,13 @@ export default function Feed({ user }) {
               >
                 ✕
               </button>
+            </div>
+          )}
+
+          {error && (
+            <div className="text-red-400 bg-red-400/10 p-3 rounded-xl text-sm font-medium border border-red-400/20 mt-1 flex items-center gap-2">
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+              {error}
             </div>
           )}
 

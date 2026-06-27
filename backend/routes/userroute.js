@@ -33,7 +33,10 @@ router.get('/search/:username', async (req, res) => {
   try {
     const users = await User.find({ 
       username: { $regex: req.params.username, $options: 'i' } 
-    }).select('username profilePicture followers following');
+    })
+      .select('username profilePicture followers following')
+      .populate('followers', 'username profilePicture')
+      .populate('following', 'username profilePicture');
     res.status(200).json(users);
   } catch (err) {
     res.status(500).json(err);
@@ -43,7 +46,9 @@ router.get('/search/:username', async (req, res) => {
 // GET USER
 router.get('/:id', async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id)
+      .populate('followers', 'username profilePicture')
+      .populate('following', 'username profilePicture');
     res.status(200).json(user);
   } catch (err) {
     res.status(500).json(err);

@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import UserListModal from '../components/UserListModal';
 
 const API_URL = 'http://localhost:5000/api';
 
 export default function Search() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', users: [] });
 
   useEffect(() => {
     document.title = 'Search | Orbit';
@@ -63,7 +65,12 @@ export default function Search() {
               </div>
               <div>
                 <h3 className="font-bold text-gray-100 text-xl group-hover:text-indigo-300 transition-colors">{user.username}</h3>
-                <p className="text-gray-500 text-sm mt-0.5 font-medium tracking-wide">{user.followers?.length || 0} followers</p>
+                <p 
+                  className="text-gray-500 text-sm mt-0.5 font-medium tracking-wide cursor-pointer hover:text-indigo-400 transition-colors inline-block"
+                  onClick={() => setModalConfig({ isOpen: true, title: 'Followers', users: user.followers })}
+                >
+                  {user.followers?.length || 0} followers
+                </p>
               </div>
             </div>
 
@@ -83,6 +90,13 @@ export default function Search() {
           </div>
         )}
       </div>
+
+      <UserListModal 
+        isOpen={modalConfig.isOpen} 
+        onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+        title={modalConfig.title}
+        users={modalConfig.users}
+      />
     </div>
   );
 }
