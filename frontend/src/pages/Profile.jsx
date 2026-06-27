@@ -50,7 +50,7 @@ export default function Profile({ user }) {
 
   const handleDelete = async (postId) => {
     try {
-      await axios.delete(`${API_URL}/posts/${postId}`);
+      await axios.delete(`${API_URL}/posts/${postId}`, { data: { userId: user._id } });
       fetchUserAndPosts();
     } catch (err) {
       console.error(err);
@@ -64,7 +64,7 @@ export default function Profile({ user }) {
       reader.readAsDataURL(file);
       reader.onloadend = async () => {
         try {
-          await axios.put(`${API_URL}/users/${user._id}`, { [type]: reader.result });
+          await axios.put(`${API_URL}/users/${user._id}`, { userId: user._id, [type]: reader.result });
           fetchUserAndPosts();
         } catch (err) {
           console.error(err);

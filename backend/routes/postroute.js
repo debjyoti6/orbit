@@ -64,6 +64,9 @@ router.get('/profile/:userId', async (req, res) => {
 router.put('/:id/like', async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json("Post not found");
+    }
     if (!post.likes.includes(req.body.userId)) {
       await post.updateOne({ $push: { likes: req.body.userId } });
       
@@ -91,8 +94,16 @@ router.put('/:id/like', async (req, res) => {
 // DELETE POST
 router.delete('/:id', async (req, res) => {
   try {
-    await Post.findByIdAndDelete(req.params.id);
-    res.status(200).json("Post has been deleted");
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json("Post not found");
+    }
+    if (post.userId.toString() === req.body.userId) {
+      await post.deleteOne();
+      res.status(200).json("Post has been deleted");
+    } else {
+      res.status(403).json("You can delete only your post");
+    }
   } catch (err) {
     res.status(500).json(err);
   }

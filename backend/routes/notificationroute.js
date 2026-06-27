@@ -14,6 +14,19 @@ router.get('/:userId', async (req, res) => {
   }
 });
 
+// Mark all as read (MUST be above /:id/read to avoid route conflict)
+router.put('/read-all/:userId', async (req, res) => {
+  try {
+    await Notification.updateMany(
+      { recipient: req.params.userId },
+      { $set: { read: true } }
+    );
+    res.status(200).json("All notifications marked as read");
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
+
 // Mark as read
 router.put('/:id/read', async (req, res) => {
   try {
@@ -22,20 +35,10 @@ router.put('/:id/read', async (req, res) => {
       { $set: { read: true } }, 
       { new: true }
     );
+    if (!notification) {
+      return res.status(404).json("Notification not found");
+    }
     res.status(200).json(notification);
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
-
-// Mark all as read
-router.put('/read-all/:userId', async (req, res) => {
-  try {
-    await Notification.updateMany(
-      { recipient: req.params.userId },
-      { $set: { read: true } }
-    );
-    res.status(200).json("All notifications marked as read");
   } catch (err) {
     res.status(500).json(err);
   }

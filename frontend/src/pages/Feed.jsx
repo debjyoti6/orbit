@@ -64,7 +64,7 @@ export default function Feed({ user }) {
 
   const handleDelete = async (postId) => {
     try {
-      await axios.delete(`${API_URL}/posts/${postId}`);
+      await axios.delete(`${API_URL}/posts/${postId}`, { data: { userId: user._id } });
       fetchPosts();
     } catch (err) {
       console.error(err);

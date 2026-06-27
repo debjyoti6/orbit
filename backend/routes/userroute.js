@@ -31,8 +31,10 @@ router.post('/login', async (req, res) => {
 // SEARCH USERS
 router.get('/search/:username', async (req, res) => {
   try {
+    // Escape regex special characters to prevent invalid regex errors
+    const escaped = req.params.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const users = await User.find({ 
-      username: { $regex: req.params.username, $options: 'i' } 
+      username: { $regex: escaped, $options: 'i' } 
     })
       .select('username profilePicture followers following')
       .populate('followers', 'username profilePicture')
@@ -57,13 +59,19 @@ router.get('/:id', async (req, res) => {
 
 // UPDATE USER
 router.put('/:id', async (req, res) => {
-  try {
-    const user = await User.findByIdAndUpdate(req.params.id, {
-      $set: req.body,
-    }, { new: true });
-    res.status(200).json(user);
-  } catch (err) {
-    res.status(500).json(err);
+  if (req.body.userId === req.params.id) {
+    try {
+      // Remove userId from the update payload to avoid saving it as a field
+      const { userId, ...updateData } = req.body;
+      const user = await User.findByIdAndUpdate(req.params.id, {
+        $set: updateData,
+      }, { new: true });
+      res.status(200).json(user);
+    } catch (err) {
+      res.status(500).json(err);
+    }
+  } else {
+    return res.status(403).json("You can update only your account!");
   }
 });
 
@@ -73,6 +81,10 @@ router.put('/:id/follow', async (req, res) => {
     try {
       const userToFollow = await User.findById(req.params.id);
       const currentUser = await User.findById(req.body.userId);
+
+      if (!userToFollow || !currentUser) {
+        return res.status(404).json("User not found");
+      }
 
       if (!userToFollow.followers.includes(req.body.userId)) {
         await userToFollow.updateOne({ $push: { followers: req.body.userId } });
