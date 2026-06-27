@@ -1,90 +1,74 @@
-const express = require('express');
-const router = express.Router();
+const router = require('express').Router();
 const Post = require('../models/postmodel');
+const User = require('../models/usermodel');
 
-// Get all posts
+// CREATE POST
+router.post('/', async (req, res) => {
+  try {
+    const newPost = new Post(req.body);
+    const savedPost = await newPost.save();
+    res.status(200).json(savedPost);
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
+
+// GET ALL POSTS (FEED)
 router.get('/', async (req, res) => {
   try {
-    // Populate replaces userId with the actual user data
+    // Populate userId to get username and profilePicture in the frontend
     const posts = await Post.find().populate('userId', 'username profilePicture');
-    res.json(posts);
+    res.status(200).json(posts);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json(err);
   }
 });
 
-// Get a specific post by ID
-router.get('/:id', async (req, res) => {
+// GET USER'S POSTS (PROFILE)
+router.get('/profile/:userId', async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id).populate('userId', 'username profilePicture');
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    res.json(post);
+    const posts = await Post.find({ userId: req.params.userId }).populate('userId', 'username profilePicture');
+    res.status(200).json(posts);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json(err);
   }
 });
 
-// Create a new post
-router.post('/', async (req, res) => {
-  const post = new Post({
-    userId: req.body.userId,
-    content: req.body.content,
-    image: req.body.image
-  });
-
-  try {
-    const newPost = await post.save();
-    res.status(201).json(newPost);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
-
-// Like/Unlike a post
+// LIKE / UNLIKE POST
 router.put('/:id/like', async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
+    if (!post.likes.includes(req.body.userId)) {
+      await post.updateOne({ $push: { likes: req.body.userId } });
+      
+      // Create notification
+      if (post.userId.toString() !== req.body.userId) {
+        const Notification = require('../models/notificationmodel');
+        await new Notification({
+          recipient: post.userId,
+          sender: req.body.userId,
+          type: 'like',
+          post: post._id
+        }).save();
+      }
 
-    const userIdStr = req.body.userId.toString();
-    if (!post.likes.some(id => id.toString() === userIdStr)) {
-      post.likes.push(req.body.userId);
+      res.status(200).json("The post has been liked");
     } else {
-      post.likes = post.likes.filter(id => id.toString() !== userIdStr);
+      await post.updateOne({ $pull: { likes: req.body.userId } });
+      res.status(200).json("The post has been disliked");
     }
-
-    await post.save();
-    res.json(post);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(500).json(err);
   }
 });
 
-// Update a post
-router.put('/:id', async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    
-    // Only update content and image if provided
-    if (req.body.content !== undefined) post.content = req.body.content;
-    if (req.body.image !== undefined) post.image = req.body.image;
-
-    const updatedPost = await post.save();
-    res.json(updatedPost);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
-
-// Delete a post
+// DELETE POST
 router.delete('/:id', async (req, res) => {
   try {
-    const post = await Post.findByIdAndDelete(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    res.json({ message: 'Post deleted' });
+    await Post.findByIdAndDelete(req.params.id);
+    res.status(200).json("Post has been deleted");
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json(err);
   }
 });
 

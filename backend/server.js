@@ -1,41 +1,28 @@
 const express = require('express');
-const cors = require('cors');
 const mongoose = require('mongoose');
-
+const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
 
+// Middleware
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '50mb' })); // For image uploads
 
-const PORT = process.env.PORT;
-mongoose.connect(process.env.ATLAS_URI);
+// Database Connection
+mongoose.connect(process.env.ATLAS_URI)
+  .then(() => console.log('MongoDB connected'))
+  .catch((err) => console.log(err));
 
-const connection = mongoose.connection;
-connection.once('open', () => {
-    console.log('MongoDB database connection established successfully');
-});
-// Import routes
-const userRoutes = require('./routes/userroute');
-const postRoutes = require('./routes/postroute');
-const commentRoutes = require('./routes/commentroute');
-const storyRoutes = require('./routes/storyroute');
-const messageRoutes = require('./routes/messageroute');
-const notificationRoutes = require('./routes/notificationroute');
+// Routes
+const userRoute = require('./routes/userroute');
+const postRoute = require('./routes/postroute');
+const notificationRoute = require('./routes/notificationroute');
 
-// Define your routes here
-app.use('/api/users', userRoutes);
-app.use('/api/posts', postRoutes);
-app.use('/api/comments', commentRoutes);
-app.use('/api/stories', storyRoutes);
-app.use('/api/messages', messageRoutes);
-app.use('/api/notifications', notificationRoutes);
+app.use('/api/users', userRoute);
+app.use('/api/posts', postRoute);
+app.use('/api/notifications', notificationRoute);
 
-app.get('/', (req, res) => {
-    res.send('Multiverse Backend Running');
-});
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+// Start Server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

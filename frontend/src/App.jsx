@@ -3,45 +3,32 @@ import { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Feed from './pages/Feed';
 import Profile from './pages/Profile';
-import Messages from './pages/Messages';
+import Search from './pages/Search';
+import Notifications from './pages/Notifications';
 import Navbar from './components/Navbar';
 
 export default function App() {
-  // State to hold the logged-in user's information
   const [user, setUser] = useState(null);
 
-  // Runs once on component mount to check if user is already logged in (saved in localStorage)
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) setUser(JSON.parse(storedUser));
   }, []);
 
   return (
-    // Router provides the navigation context for the application
     <Router>
-      <div className="h-screen flex flex-col text-white relative overflow-hidden bg-[#0f172a]">
-        {/* Ambient Glows */}
-        <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] rounded-full bg-gradient-to-tr from-blue-900/20 to-teal-600/10 blur-[120px] z-0 mix-blend-screen"></div>
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-gradient-to-bl from-indigo-900/20 to-purple-800/10 blur-[150px] z-0 mix-blend-screen"></div>
-
-        {/* Content wrapper ensures content sits on top of background */}
-        <div className="relative z-10 flex flex-col h-full flex-1 min-h-0">
-          {/* Render Navbar only if user is logged in */}
-          {user && <Navbar user={user} setUser={setUser} />}
-          
-          {/* Main content area */}
-          <main className="flex-1 flex flex-col p-4 min-h-0 overflow-y-auto">
+      <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
+        {user && <Navbar user={user} setUser={setUser} />}
+        
+        <main className="flex-1 w-full max-w-4xl mx-auto p-4">
           <Routes>
-            {/* If not logged in, show Login; otherwise redirect to Feed */}
             <Route path="/" element={!user ? <Login setUser={setUser} /> : <Navigate to="/feed" />} />
-            
-            {/* Protected Routes: Only accessible if user is logged in */}
             <Route path="/feed" element={user ? <Feed user={user} /> : <Navigate to="/" />} />
-            <Route path="/messages" element={user ? <Messages user={user} /> : <Navigate to="/" />} />
-            <Route path="/profile" element={user ? <Profile user={user} setUser={setUser} /> : <Navigate to="/" />} />
+            <Route path="/search" element={user ? <Search /> : <Navigate to="/" />} />
+            <Route path="/profile/:id" element={user ? <Profile user={user} /> : <Navigate to="/" />} />
+            <Route path="/notifications" element={user ? <Notifications user={user} /> : <Navigate to="/" />} />
           </Routes>
         </main>
-      </div>
       </div>
     </Router>
   );

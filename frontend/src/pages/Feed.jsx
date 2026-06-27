@@ -1,367 +1,191 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 
 const API_URL = 'http://localhost:5000/api';
 
 export default function Feed({ user }) {
   const [posts, setPosts] = useState([]);
-  const [stories, setStories] = useState([]);
-  const [form, setForm] = useState({ content: '', image: '' });
-  
-  const [comments, setComments] = useState({});
-  const [commentText, setCommentText] = useState({});
-  const [showComments, setShowComments] = useState({});
-  const [openMenuId, setOpenMenuId] = useState(null);
-  const [editingPostId, setEditingPostId] = useState(null);
-  const [editContent, setEditContent] = useState('');
+  const [content, setContent] = useState('');
+  const [image, setImage] = useState('');
 
   const fetchPosts = async () => {
-    const res = await axios.get(`${API_URL}/posts`);
-    setPosts(res.data.reverse()); 
-  };
-
-  const fetchStories = async () => {
-    const res = await axios.get(`${API_URL}/stories`);
-    setStories(res.data.reverse());
-  };
-
-  useEffect(() => { 
-    fetchPosts(); 
-    fetchStories();
-  }, []);
-
-  const handleLike = async (postId) => {
-    await axios.put(`${API_URL}/posts/${postId}/like`, { userId: user._id });
-    fetchPosts(); 
-  };
-
-  const handlePost = async (e) => {
-    e.preventDefault();
-    if (!form.content && !form.image) return;
     try {
-      await axios.post(`${API_URL}/posts`, { userId: user._id, ...form });
-      setForm({ content: '', image: '' }); 
-      fetchPosts();
-    } catch (err) {
-      alert("Transmission failed: " + (err.response?.data?.message || err.message));
-    }
-  };
-
-  const handleDeletePost = async (postId) => {
-    if (window.confirm("Are you sure you want to delete this post?")) {
-      try {
-        await axios.delete(`${API_URL}/posts/${postId}`);
-        fetchPosts();
-      } catch (err) {
-        alert("Failed to delete post: " + (err.response?.data?.message || err.message));
-      }
-    }
-  };
-
-  const handleUpdatePost = async (postId) => {
-    if (!editContent.trim()) return;
-    try {
-      await axios.put(`${API_URL}/posts/${postId}`, { content: editContent });
-      setEditingPostId(null);
-      fetchPosts();
-    } catch (err) {
-      alert("Failed to update post: " + (err.response?.data?.message || err.message));
-    }
-  };
-
-  const handleAddStory = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        try {
-          await axios.post(`${API_URL}/stories`, { userId: user._id, image: reader.result });
-          fetchStories();
-        } catch (err) {
-          alert("Failed to add story: " + (err.response?.data?.message || err.message));
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleDeleteStory = async (storyId) => {
-    if (window.confirm("Delete this story?")) {
-      try {
-        await axios.delete(`${API_URL}/stories/${storyId}`);
-        fetchStories();
-      } catch (err) {
-        alert("Failed to delete story.");
-      }
-    }
-  };
-
-  const fetchComments = async (postId) => {
-    try {
-      const res = await axios.get(`${API_URL}/comments/post/${postId}`);
-      setComments(prev => ({ ...prev, [postId]: res.data }));
+      const res = await axios.get(`${API_URL}/posts`);
+      setPosts(res.data.reverse());
     } catch (err) {
       console.error(err);
     }
   };
 
-  const toggleComments = (postId) => {
-    const isShowing = showComments[postId];
-    setShowComments(prev => ({ ...prev, [postId]: !isShowing }));
-    if (!isShowing) {
-      fetchComments(postId);
+  useEffect(() => {
+    document.title = 'Feed | Orbit';
+    fetchPosts();
+  }, []);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setImage(reader.result);
+      reader.readAsDataURL(file);
     }
   };
 
-  const handlePostComment = async (postId) => {
-    const text = commentText[postId];
-    if (!text) return;
+  const handlePost = async (e) => {
+    e.preventDefault();
+    if (!content.trim() && !image) return; // Can post text or image or both
+    
     try {
-      await axios.post(`${API_URL}/comments`, {
-        postId,
-        userId: user._id,
-        content: text
-      });
-      setCommentText(prev => ({ ...prev, [postId]: '' }));
-      fetchComments(postId);
+      await axios.post(`${API_URL}/posts`, { userId: user._id, content, image });
+      setContent('');
+      setImage('');
+      fetchPosts();
     } catch (err) {
-      alert("Failed to post comment");
+      console.error(err);
     }
   };
 
-  const handleDeleteComment = async (commentId, postId) => {
+  const handleLike = async (postId) => {
     try {
-      await axios.delete(`${API_URL}/comments/${commentId}`);
-      fetchComments(postId);
+      await axios.put(`${API_URL}/posts/${postId}/like`, { userId: user._id });
+      fetchPosts();
     } catch (err) {
-      alert("Failed to delete comment");
+      console.error(err);
+    }
+  };
+
+  const handleDelete = async (postId) => {
+    try {
+      await axios.delete(`${API_URL}/posts/${postId}`);
+      fetchPosts();
+    } catch (err) {
+      console.error(err);
     }
   };
 
   return (
-    <div className="flex-1 min-h-0 w-full pb-8">
-      <div className="max-w-2xl mx-auto w-full py-4 space-y-8">
-        
-        {/* Stories Section */}
-        <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
-          {/* Add Story Button */}
-          <div className="flex flex-col items-center gap-2 min-w-[80px]">
-            <label className="w-16 h-16 rounded-full border-2 border-dashed border-indigo-500 flex items-center justify-center cursor-pointer hover:bg-indigo-900/40 transition">
-              <span className="text-2xl text-indigo-400">+</span>
-              <input type="file" accept="image/*" className="hidden" onChange={handleAddStory} />
-            </label>
-            <span className="text-xs text-slate-400">Add Story</span>
-          </div>
-
-          {/* Render Stories */}
-          {stories.map(story => (
-            <div key={story._id} className="flex flex-col items-center gap-2 min-w-[80px] relative group">
-              <div className="w-16 h-16 rounded-full border-2 border-pink-500 p-[2px] overflow-hidden">
-                <img src={story.image} className="w-full h-full rounded-full object-cover" alt="Story" />
-              </div>
-              <span className="text-xs text-slate-300 truncate w-full text-center">{story.userId?.username || 'User'}</span>
-              {story.userId?._id === user._id && (
-                <button 
-                  onClick={() => handleDeleteStory(story._id)} 
-                  className="absolute top-0 right-0 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  &times;
-                </button>
-              )}
+    <div className="flex flex-col gap-10 w-full max-w-3xl mx-auto py-8 px-4">
+      {/* Create Post Section */}
+      <div className="bg-gray-900/40 backdrop-blur-xl p-4 sm:p-5 rounded-3xl shadow-xl border border-gray-700/50">
+        <form onSubmit={handlePost} className="flex flex-col gap-3">
+          
+          <div className="flex gap-3 items-start">
+            <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 flex-shrink-0 flex items-center justify-center text-indigo-300 font-bold border border-indigo-500/30 mt-1 shadow-sm">
+              {user.username[0].toUpperCase()}
             </div>
-          ))}
-        </div>
+            
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder={`What's on your mind, ${user.username}?`}
+              className="w-full bg-transparent border-none p-2 focus:outline-none focus:ring-0 resize-none min-h-[60px] text-gray-100 placeholder-gray-500 text-lg"
+            ></textarea>
+          </div>
+          
+          {image && (
+            <div className="relative mt-1 ml-13 rounded-2xl overflow-hidden border border-gray-700/50 shadow-md">
+              <img src={image} alt="Preview" className="w-full max-h-64 object-cover" />
+              <button 
+                type="button" 
+                onClick={() => setImage('')} 
+                className="absolute top-2 right-2 bg-gray-900/80 hover:bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-lg transition"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
-        {/* Create Post Section */}
-        <form onSubmit={handlePost} className="glass p-6 rounded-2xl flex flex-col gap-4">
-          <textarea
-            value={form.content}
-            onChange={(e) => setForm({ ...form, content: e.target.value })}
-            placeholder="What's on your mind?"
-            className="p-4 rounded-xl bg-slate-800/50 border border-slate-700 outline-none focus:border-indigo-500 resize-none h-24 text-white"
-          />
-          {/* File Picker & Submit Button */}
-          <div className="flex items-center gap-4">
-            <label className="cursor-pointer bg-indigo-900/40 hover:bg-indigo-800/60 px-4 py-2 rounded-lg text-indigo-300 transition border border-indigo-500/30 text-sm font-bold uppercase tracking-wider">
-              📷 Attach Image
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => setForm({ ...form, image: reader.result });
-                    reader.readAsDataURL(file);
-                  }
-                }}
-              />
+          <div className="flex justify-between items-center mt-2 border-t border-gray-700/50 pt-3">
+            <label className="cursor-pointer text-indigo-400 font-semibold hover:text-indigo-300 bg-transparent hover:bg-gray-700/50 px-3 py-1.5 rounded-full transition-colors flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              Photo
+              <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
             </label>
             
-            {form.image && (
-              <div className="flex items-center gap-2">
-                <img src={form.image} alt="Preview" className="w-8 h-8 rounded object-cover border border-indigo-500" />
-                <span className="text-sm text-cyan-400 font-bold tracking-wide">Image attached &check;</span>
-              </div>
-            )}
-            
-            <button type="submit" className="ml-auto px-8 py-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 font-bold uppercase tracking-widest shadow-[0_0_15px_rgba(79,70,229,0.5)] transition-all">
+            <button 
+              type="submit" 
+              disabled={!content.trim() && !image}
+              className="disabled:opacity-50 disabled:cursor-not-allowed bg-indigo-500 text-white px-6 py-2 rounded-full hover:bg-indigo-400 font-bold transition-all disabled:hover:bg-indigo-500 shadow-md hover:shadow-lg"
+            >
               Post
             </button>
           </div>
         </form>
+      </div>
 
-        {/* Posts List Section */}
-        <div className="flex flex-col gap-6">
-          {posts.map(post => (
-            <div key={post._id} className="glass p-6 rounded-2xl flex flex-col relative">
-              
-              {/* Post Options Menu (Only if user owns post) */}
-              {post.userId?._id === user._id && (
-                <div className="absolute top-4 right-4 z-10">
-                  <button 
-                    onClick={() => setOpenMenuId(openMenuId === post._id ? null : post._id)}
-                    className="text-slate-400 hover:text-white px-2 py-1 transition font-bold text-lg leading-none tracking-widest bg-slate-800/30 hover:bg-slate-800/80 rounded-lg"
-                  >
-                    ...
-                  </button>
-                  {openMenuId === post._id && (
-                    <div className="absolute right-0 mt-2 w-32 bg-slate-800 border border-slate-700 rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.5)] overflow-hidden">
-                      <button 
-                        onClick={() => {
-                          setEditingPostId(post._id);
-                          setEditContent(post.content);
-                          setOpenMenuId(null);
-                        }}
-                        className="w-full text-left px-4 py-3 text-sm text-indigo-300 hover:bg-slate-700 transition font-semibold"
-                      >
-                        Update
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setOpenMenuId(null);
-                          handleDeletePost(post._id);
-                        }}
-                        className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-slate-700 transition font-semibold"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
+      {/* Feed Section */}
+      <div className="flex flex-col gap-6">
+        {posts.map(post => (
+          <div key={post._id} className="bg-gray-900/40 backdrop-blur-sm p-5 sm:p-6 rounded-3xl border border-gray-700/50 flex flex-col gap-4 shadow-xl hover:bg-gray-900/60 transition-colors duration-300">
+            
+            {/* Post Header */}
+            <div className="flex justify-between items-center">
+              <Link to={`/profile/${post.userId?._id}`} className="flex items-center gap-3 group">
+                <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 flex items-center justify-center text-indigo-300 font-bold text-lg border border-indigo-500/30 group-hover:border-indigo-400 transition-colors shadow-sm">
+                  {post.userId?.username?.[0]?.toUpperCase() || '?'}
                 </div>
-              )}
-
-              {/* Post Header */}
-              <div className="flex items-center gap-3 mb-4">
-                {post.userId?.profilePicture ? (
-                  <img src={post.userId.profilePicture} className="w-10 h-10 rounded-full object-cover" alt="User" />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center font-bold">
-                    {post.userId?.username?.[0]?.toUpperCase() || '?'}
-                  </div>
-                )}
                 <div>
-                  <p className="font-semibold">{post.userId?.username}</p>
-                  <p className="text-xs text-slate-400">{new Date(post.createdAt).toLocaleDateString()}</p>
+                  <div className="font-bold text-[1.05rem] text-gray-100 group-hover:text-indigo-300 transition-colors">
+                    {post.userId?.username || 'Unknown User'}
+                  </div>
+                  <div className="text-gray-500 text-xs font-medium tracking-wide">
+                    {new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
                 </div>
-              </div>
+              </Link>
               
-              {/* Post Body */}
-              {editingPostId === post._id ? (
-                <div className="mb-4 flex flex-col gap-2 relative z-0">
-                  <textarea 
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full p-3 rounded-lg bg-slate-900/80 border border-indigo-500/50 outline-none focus:border-indigo-400 text-white resize-none min-h-[80px]"
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <button 
-                      onClick={() => setEditingPostId(null)}
-                      className="px-4 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-bold transition uppercase tracking-wider"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      onClick={() => handleUpdatePost(post._id)}
-                      className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-[0_0_10px_rgba(79,70,229,0.4)] uppercase tracking-wider"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <p className="mb-4 whitespace-pre-wrap">{post.content}</p>
-              )}
-              {post.image && <img src={post.image} className="rounded-xl w-full max-h-96 object-cover mb-4" alt="Post" />}
-              
-              {/* Post Footer Actions */}
-              <div className="pt-4 border-t border-slate-700/50 flex items-center gap-6 text-sm">
+              {/* Optional Delete Button */}
+              {post.userId?._id === user._id && (
                 <button 
-                  onClick={() => handleLike(post._id)}
-                  className={`flex items-center gap-2 font-bold tracking-wide transition ${post.likes?.includes(user._id) ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]' : 'text-slate-400 hover:text-yellow-200'}`}
+                  onClick={() => handleDelete(post._id)} 
+                  title="Delete Post"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                 >
-                  <span>⭐</span> {post.likes?.length || 0} Stars
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
-
-                <button 
-                  onClick={() => toggleComments(post._id)}
-                  className="flex items-center gap-2 font-bold tracking-wide text-indigo-300 hover:text-indigo-200 transition"
-                >
-                  <span>💬</span> Comments
-                </button>
-              </div>
-
-              {/* Comments Section */}
-              {showComments[post._id] && (
-                <div className="mt-4 pt-4 border-t border-slate-700/50 flex flex-col gap-3">
-                  {/* List Comments */}
-                  <div className="flex flex-col gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
-                    {comments[post._id]?.length > 0 ? (
-                      comments[post._id].map(comment => (
-                        <div key={comment._id} className="bg-slate-800/40 p-3 rounded-lg flex justify-between items-start group">
-                          <div>
-                            <span className="font-bold text-indigo-300 text-xs mr-2">{comment.userId?.username}</span>
-                            <span className="text-sm">{comment.content}</span>
-                          </div>
-                          {(comment.userId?._id === user._id || post.userId?._id === user._id) && (
-                            <button 
-                              onClick={() => handleDeleteComment(comment._id, post._id)}
-                              className="text-red-500 text-xs opacity-0 group-hover:opacity-100 transition hover:text-red-400 p-1"
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-slate-500 italic">No comments yet. Be the first!</p>
-                    )}
-                  </div>
-                  
-                  {/* Add Comment Field */}
-                  <div className="flex gap-2 mt-2">
-                    <input 
-                      type="text" 
-                      placeholder="Add a comment..."
-                      value={commentText[post._id] || ''}
-                      onChange={(e) => setCommentText(prev => ({ ...prev, [post._id]: e.target.value }))}
-                      onKeyDown={(e) => e.key === 'Enter' && handlePostComment(post._id)}
-                      className="flex-1 bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500 text-white"
-                    />
-                    <button 
-                      onClick={() => handlePostComment(post._id)}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition"
-                    >
-                      Post
-                    </button>
-                  </div>
-                </div>
               )}
-
             </div>
-          ))}
-        </div>
+            
+            {/* Post Content */}
+            {post.content && (
+              <p className="text-gray-300 text-[1.05rem] whitespace-pre-wrap leading-relaxed px-1">
+                {post.content}
+              </p>
+            )}
+            
+            {/* Post Image */}
+            {post.image && (
+              <div className="mt-1 rounded-2xl overflow-hidden border border-gray-700/50 shadow-lg shadow-black/20 bg-black/40 relative group">
+                <img src={post.image} alt="Post" className="w-full max-h-[550px] object-contain group-hover:scale-[1.01] transition-transform duration-500" />
+              </div>
+            )}
+            
+            {/* Post Actions */}
+            <div className="flex justify-between items-center mt-2 px-1">
+              <button 
+                onClick={() => handleLike(post._id)}
+                className={`group flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-full transition-all duration-300 border ${post.likes?.includes(user._id) ? 'bg-pink-500/10 text-pink-400 border-pink-500/20 shadow-[0_0_15px_rgba(236,72,153,0.15)]' : 'bg-transparent text-gray-400 border-gray-700/50 hover:bg-gray-800 hover:text-gray-200'}`}
+              >
+                <svg className={`w-5 h-5 transition-transform group-hover:scale-110 ${post.likes?.includes(user._id) ? 'fill-pink-400' : 'fill-transparent'}`} stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                {post.likes?.includes(user._id) ? 'Liked' : 'Like'} 
+                {post.likes?.length > 0 && (
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-md text-xs ${post.likes?.includes(user._id) ? 'bg-pink-500/20' : 'bg-gray-700/50'}`}>
+                    {post.likes?.length}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        ))}
+        {posts.length === 0 && (
+          <div className="text-center p-12 bg-gray-900/40 backdrop-blur-sm rounded-3xl shadow-sm text-gray-400 border border-gray-700/50">
+            <div className="text-5xl mb-4 opacity-50">📭</div>
+            <p className="text-lg font-medium">No posts yet. Be the first to share something!</p>
+          </div>
+        )}
       </div>
     </div>
   );
